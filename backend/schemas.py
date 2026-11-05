@@ -57,3 +57,25 @@ class ListingOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ClaimOut(BaseModel):
+    id: int
+    listing_id: int
+    ngo_id: int
+    status: str
+    cancel_reason: str | None
+    claimed_at: datetime
+    picked_up_at: datetime | None
+    delivered_at: datetime | None
+
+    model_config = {"from_attributes": True}
+
+
+class OtpVerify(BaseModel):
+    otp: str = Field(min_length=6, max_length=6)
+
+
+class OtpOut(BaseModel):
+    otp: str
+    expires_at: datetime

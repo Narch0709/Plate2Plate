@@ -2,7 +2,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from routers import admin, listings
+from routers import admin, claims, listings
 
 from database import get_db
 from deps import get_current_user, require_role
@@ -13,6 +13,7 @@ from security import create_access_token, hash_password, verify_password
 app = FastAPI(title="Plate2Plate API")
 app.include_router(admin.router)
 app.include_router(listings.router)
+app.include_router(claims.router)
 
 @app.get("/")
 def home():
