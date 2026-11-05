@@ -1,4 +1,5 @@
 import secrets
+from realtime import queue_event
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -28,7 +29,7 @@ def verified_ngo(user: User = Depends(require_role("ngo"))) -> User:
 
 
 def log_event(db: Session, listing: FoodListing, actor: User, status: str, note: str | None = None):
-    """Change the listing status and record it in the audit log."""
+    """Change the listing status, record it in the audit log, and queue a live update."""
     listing.status = status
     db.add(
         StatusEvent(
@@ -38,6 +39,21 @@ def log_event(db: Session, listing: FoodListing, actor: User, status: str, note:
             actor_id=actor.id,
             note=note,
         )
+    )
+    # Everyone sees whether food is still on offer; only the people involved
+    # (and the admin) see pickup progress.
+    public = status in ("available", "claimed", "cancelled", "expired")
+    queue_event(
+        db,
+        {
+            "type": "listing_status",
+            "listing_id": listing.id,
+            "title": listing.title,
+            "status": status,
+            "note": note,
+        },
+        user_ids={listing.donor_id, actor.id},
+        roles={"admin", "ngo"} if public else {"admin"},
     )
 
 

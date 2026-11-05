@@ -4,13 +4,30 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from routers import admin, claims, listings
 
+import asyncio
+from contextlib import asynccontextmanager
+
+from fastapi import WebSocket, WebSocketDisconnect
+from jwt import InvalidTokenError
+
+from database import SessionLocal
+from realtime import manager
+from security import decode_access_token
+
 from database import get_db
 from deps import get_current_user, require_role
 from models import User
 from schemas import Token, UserCreate, UserOut
 from security import create_access_token, hash_password, verify_password
 
-app = FastAPI(title="Plate2Plate API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    manager.loop = asyncio.get_running_loop()
+    yield
+
+
+app = FastAPI(title="Plate2Plate API", lifespan=lifespan)
+
 app.include_router(admin.router)
 app.include_router(listings.router)
 app.include_router(claims.router)
@@ -54,4 +71,31 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 @app.get("/auth/me", response_model=UserOut)
 def me(user: User = Depends(get_current_user)):
     return user
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket, token: str):
+    user_id = None
+    role = None
+    db = SessionLocal()
+    try:
+        payload = decode_access_token(token)
+        user = db.get(User, int(payload["sub"]))
+        if user:
+            user_id, role = user.id, user.role
+    except (InvalidTokenError, KeyError, ValueError):
+        pass
+    finally:
+        db.close()
+
+    if user_id is None:
+        await websocket.close(code=1008)
+        return
+
+    await manager.connect(websocket, user_id, role)
+    try:
+        while True:
+            await websocket.receive_text()  # keeps the connection open
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
 
