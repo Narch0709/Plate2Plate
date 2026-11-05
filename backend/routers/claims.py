@@ -5,11 +5,12 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from geo import eta_minutes, haversine_km
 
 from database import get_db
-from deps import require_role
+from deps import require_role,  get_current_user
 from models import Claim, FoodListing, StatusEvent, User
-from schemas import ClaimOut, OtpOut, OtpVerify
+from schemas import ClaimOut, LocationUpdate, OtpOut, OtpVerify, TrackOut
 from security import hash_password, verify_password
 
 router = APIRouter(prefix="/claims", tags=["claims"])
@@ -200,3 +201,74 @@ def cancel_claim(
     db.commit()
     db.refresh(claim)
     return claim
+
+def build_track(claim: Claim, listing: FoodListing) -> TrackOut:
+    distance = None
+    eta = None
+    # Distance to the pickup point only matters until the food is picked up
+    if listing.status == "in_transit" and None not in (
+        claim.last_latitude,
+        claim.last_longitude,
+        listing.latitude,
+        listing.longitude,
+    ):
+        distance = round(
+            haversine_km(claim.last_latitude, claim.last_longitude, listing.latitude, listing.longitude), 2
+        )
+        eta = eta_minutes(distance)
+
+    return TrackOut(
+        claim_id=claim.id,
+        listing_id=listing.id,
+        listing_status=listing.status,
+        pickup_latitude=listing.latitude,
+        pickup_longitude=listing.longitude,
+        ngo_latitude=claim.last_latitude,
+        ngo_longitude=claim.last_longitude,
+        last_update=claim.last_location_at,
+        distance_km=distance,
+        eta_minutes=eta,
+    )
+
+
+@router.post("/{claim_id}/location", response_model=TrackOut)
+def update_location(
+    claim_id: int,
+    data: LocationUpdate,
+    db: Session = Depends(get_db),
+    ngo: User = Depends(verified_ngo),
+):
+    claim = get_ngo_claim(db, claim_id, ngo)
+    listing = db.get(FoodListing, claim.listing_id)
+    if claim.status != "active" or listing.status not in ("in_transit", "picked_up"):
+        raise HTTPException(status_code=400, detail="Tracking only works while a pickup is under way")
+
+    claim.last_latitude = data.latitude
+    claim.last_longitude = data.longitude
+    claim.last_location_at = now()
+
+    track = build_track(claim, listing)
+    queue_event(
+        db,
+        {"type": "location", **track.model_dump(mode="json")},
+        user_ids={listing.donor_id},
+        roles={"admin"},
+    )
+    db.commit()
+    return track
+
+
+@router.get("/{claim_id}/track", response_model=TrackOut)
+def track_claim(
+    claim_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    claim = db.get(Claim, claim_id)
+    listing = db.get(FoodListing, claim.listing_id) if claim else None
+    allowed = listing is not None and (
+        user.role == "admin" or user.id == claim.ngo_id or user.id == listing.donor_id
+    )
+    if not allowed:
+        raise HTTPException(status_code=404, detail="Claim not found")
+    return build_track(claim, listing)

@@ -115,3 +115,21 @@ class TransferOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class LocationUpdate(BaseModel):
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+
+
+class TrackOut(BaseModel):
+    claim_id: int
+    listing_id: int
+    listing_status: str
+    pickup_latitude: float | None
+    pickup_longitude: float | None
+    ngo_latitude: float | None
+    ngo_longitude: float | None
+    last_update: datetime | None
+    distance_km: float | None
+    eta_minutes: int | None
