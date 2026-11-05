@@ -2,6 +2,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from routers import admin, listings
 
 from database import get_db
 from deps import get_current_user, require_role
@@ -10,7 +11,8 @@ from schemas import Token, UserCreate, UserOut
 from security import create_access_token, hash_password, verify_password
 
 app = FastAPI(title="Plate2Plate API")
-
+app.include_router(admin.router)
+app.include_router(listings.router)
 
 @app.get("/")
 def home():
@@ -52,7 +54,3 @@ def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get
 def me(user: User = Depends(get_current_user)):
     return user
 
-
-@app.get("/admin/ping")
-def admin_ping(user: User = Depends(require_role("admin"))):
-    return {"message": f"Hello admin {user.name}"}

@@ -1,5 +1,6 @@
 from typing import Literal
 from pydantic import BaseModel, EmailStr, Field
+from datetime import datetime
 
 
 class UserCreate(BaseModel):
@@ -28,3 +29,31 @@ class UserOut(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+class ListingCreate(BaseModel):
+    title: str = Field(min_length=2, max_length=150)
+    food_type: str = Field(max_length=50)
+    description: str | None = None
+    quantity_servings: int = Field(gt=0)
+    address: str = Field(max_length=300)
+    latitude: float | None = None
+    longitude: float | None = None
+    prepared_at: datetime | None = None
+    safe_until: datetime
+
+
+class ListingOut(BaseModel):
+    id: int
+    donor_id: int
+    title: str
+    food_type: str
+    description: str | None
+    quantity_servings: int
+    address: str
+    latitude: float | None
+    longitude: float | None
+    safe_until: datetime
+    status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
