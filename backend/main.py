@@ -2,8 +2,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from routers import admin, claims, listings
-
+from routers import admin, claims, listings, transfers
 import asyncio
 from contextlib import asynccontextmanager
 
@@ -31,6 +30,7 @@ app = FastAPI(title="Plate2Plate API", lifespan=lifespan)
 app.include_router(admin.router)
 app.include_router(listings.router)
 app.include_router(claims.router)
+app.include_router(transfers.router)
 
 @app.get("/")
 def home():

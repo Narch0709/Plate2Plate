@@ -79,3 +79,39 @@ class OtpVerify(BaseModel):
 class OtpOut(BaseModel):
     otp: str
     expires_at: datetime
+
+class NgoPublic(BaseModel):
+    id: int
+    name: str
+    org_name: str | None
+    address: str | None
+    latitude: float | None
+    longitude: float | None
+
+    model_config = {"from_attributes": True}
+
+
+class TransferCreate(BaseModel):
+    other_ngo_id: int
+    kind: Literal["offer", "request"]
+    item_description: str = Field(min_length=2, max_length=200)
+    quantity_servings: int = Field(gt=0)
+    note: str | None = Field(default=None, max_length=300)
+
+
+class TransferRespond(BaseModel):
+    accept: bool
+
+
+class TransferOut(BaseModel):
+    id: int
+    from_ngo_id: int
+    to_ngo_id: int
+    initiated_by_id: int
+    item_description: str
+    quantity_servings: int
+    status: str
+    note: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

@@ -36,3 +36,8 @@ def require_role(*roles: str):
         return user
 
     return checker
+
+def verified_ngo(user: User = Depends(require_role("ngo"))) -> User:
+    if not user.is_verified:
+        raise HTTPException(status_code=403, detail="Your NGO is waiting for admin approval")
+    return user

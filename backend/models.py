@@ -64,6 +64,8 @@ class NgoTransfer(Base):
     to_ngo_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     item_description: Mapped[str] = mapped_column(String(200))
     quantity_servings: Mapped[int] = mapped_column(Integer)
+    initiated_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    note: Mapped[str | None] = mapped_column(String(300))
     status: Mapped[str] = mapped_column(String(20), default="requested")  # requested, accepted, in_transit, completed, rejected
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
