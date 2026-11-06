@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy import String, Integer, Float, Boolean, DateTime, ForeignKey, Text, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base
 
 
@@ -38,7 +38,7 @@ class FoodListing(Base):
     # available, claimed, in_transit, picked_up, delivered, cancelled, expired
     status: Mapped[str] = mapped_column(String(20), default="available", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
+    donor: Mapped[User] = relationship(lazy="selectin")
 
 class Claim(Base):
     __tablename__ = "claims"
@@ -54,7 +54,11 @@ class Claim(Base):
     claimed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     picked_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-
+    last_latitude: Mapped[float | None] = mapped_column(Float)
+    last_longitude: Mapped[float | None] = mapped_column(Float)
+    last_location_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    listing: Mapped[FoodListing] = relationship(lazy="selectin")
+    ngo: Mapped[User] = relationship(lazy="selectin")
 
 class NgoTransfer(Base):
     __tablename__ = "ngo_transfers"

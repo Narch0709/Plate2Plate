@@ -4,12 +4,16 @@ import { api } from "../../api";
 import useLive from "../../hooks/useLive";
 import useTick from "../../hooks/useTick";
 import StatusChip from "../../components/StatusChip";
+import HandoverPanel from "../../components/HandoverPanel";
 import { shortDate, timeLeft } from "../../lib/format";
 
 const ACTIVE = ["available", "claimed", "in_transit"];
+const WITH_PANEL = ["claimed", "in_transit", "picked_up"];
 
 export default function MyListings() {
   const [items, setItems] = useState(null);
+  const [claims, setClaims] = useState([]);
+  const [tracks, setTracks] = useState({});
   const [error, setError] = useState("");
   useTick();
 
@@ -17,6 +21,9 @@ export default function MyListings() {
     api("/listings/mine")
       .then(setItems)
       .catch((e) => setError(e.message));
+    api("/claims/incoming")
+      .then(setClaims)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -25,7 +32,11 @@ export default function MyListings() {
 
   useLive((msg) => {
     if (msg.type === "listing_status") load();
+    if (msg.type === "location") setTracks((t) => ({ ...t, [msg.claim_id]: msg }));
   });
+
+  const activeClaimFor = (listingId) =>
+    claims.find((c) => c.listing_id === listingId && c.status === "active");
 
   async function cancel(id) {
     if (!window.confirm("Cancel this listing?")) return;
@@ -58,30 +69,38 @@ export default function MyListings() {
       )}
 
       <ul className="mt-4 space-y-3">
-        {items?.map((l) => (
-          <li key={l.id} className="border border-line bg-white p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-medium leading-snug">{l.title}</h3>
-                <p className="mt-0.5 text-sm text-muted">
-                  {l.quantity_servings} servings · {l.food_type}
-                </p>
+        {items?.map((l) => {
+          const claim = activeClaimFor(l.id);
+          return (
+            <li key={l.id} className="border border-line bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="font-medium leading-snug">{l.title}</h3>
+                  <p className="mt-0.5 text-sm text-muted">
+                    {l.quantity_servings} servings · {l.food_type}
+                  </p>
+                </div>
+                <StatusChip status={l.status} />
               </div>
-              <StatusChip status={l.status} />
-            </div>
-            <p className="mt-2 text-sm text-muted">{l.address}</p>
-            <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
-              <span className="font-mono text-[13px] text-accent">
-                {ACTIVE.includes(l.status) ? timeLeft(l.safe_until) : shortDate(l.created_at)}
-              </span>
-              {["available", "claimed"].includes(l.status) && (
-                <button onClick={() => cancel(l.id)} className="text-sm font-semibold text-danger">
-                  Cancel
-                </button>
+              <p className="mt-2 text-sm text-muted">{l.address}</p>
+
+              {claim && WITH_PANEL.includes(l.status) && (
+                <HandoverPanel claim={claim} status={l.status} track={tracks[claim.id]} />
               )}
-            </div>
-          </li>
-        ))}
+
+              <div className="mt-3 flex items-center justify-between border-t border-line pt-3">
+                <span className="font-mono text-[13px] text-accent">
+                  {ACTIVE.includes(l.status) ? timeLeft(l.safe_until) : shortDate(l.created_at)}
+                </span>
+                {["available", "claimed"].includes(l.status) && (
+                  <button onClick={() => cancel(l.id)} className="text-sm font-semibold text-danger">
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

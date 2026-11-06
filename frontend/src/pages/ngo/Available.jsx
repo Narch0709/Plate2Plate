@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../../api";
 import useLive from "../../hooks/useLive";
 import useTick from "../../hooks/useTick";
 import { timeLeft } from "../../lib/format";
 
 export default function Available() {
+  const navigate = useNavigate();
   const [items, setItems] = useState(null);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [busyId, setBusyId] = useState(null);
   useTick();
 
@@ -30,13 +31,11 @@ export default function Available() {
 
   async function claim(id) {
     setBusyId(id);
-    setNotice("");
     try {
       await api(`/claims/listing/${id}`, { method: "POST" });
-      setNotice("You have claimed this food.");
+      navigate("/ngo/pickups");
     } catch (e) {
       setError(e.message);
-    } finally {
       setBusyId(null);
       load();
     }
@@ -48,7 +47,6 @@ export default function Available() {
       <p className="mt-1 text-sm text-muted">Updates appear here as donors post, with no refresh needed.</p>
 
       {error && <p className="mt-4 border-l-4 border-accent bg-white px-3 py-2 text-sm">{error}</p>}
-      {notice && <p className="mt-4 border-l-4 border-brand bg-white px-3 py-2 text-sm">{notice}</p>}
 
       {items === null && !error && <p className="mt-6 text-sm text-muted">Loading…</p>}
       {items && items.length === 0 && (
@@ -60,6 +58,11 @@ export default function Available() {
           <li key={l.id} className="border border-line bg-white p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
+                {l.donor && (
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted">
+                    {l.donor.org_name || l.donor.name}
+                  </p>
+                )}
                 <h3 className="font-medium leading-snug">{l.title}</h3>
                 <p className="mt-0.5 text-sm text-muted">
                   {l.quantity_servings} servings · {l.food_type}

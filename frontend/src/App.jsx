@@ -6,6 +6,7 @@ import Home from "./pages/Home";
 import MyListings from "./pages/donor/MyListings";
 import PostFood from "./pages/donor/PostFood";
 import Available from "./pages/ngo/Available";
+import Pickups from "./pages/ngo/Pickups";
 
 function Protected({ roles }) {
   const { user, loading } = useAuth();
