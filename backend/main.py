@@ -19,6 +19,8 @@ from models import User
 from schemas import Token, UserCreate, UserOut
 from security import create_access_token, hash_password, verify_password
 
+from fastapi.middleware.cors import CORSMiddleware
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     manager.loop = asyncio.get_running_loop()
@@ -31,6 +33,14 @@ app.include_router(admin.router)
 app.include_router(listings.router)
 app.include_router(claims.router)
 app.include_router(transfers.router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def home():
